@@ -1,0 +1,7 @@
+FIND_PACKAGE ("OpenCSX")
+INCLUDE_DIRECTORIES ("${OPENCSX_INCLUDE_DIR}")
+
+DECLARE_ZORBA_MODULE (URI "http://www.zorba-xquery.com/modules/csx" 
+  LINK_LIBRARIES "${OPENCSX_LIBRARY}" 
+  VERSION 1.0 FILE "csx.xq"
+)
