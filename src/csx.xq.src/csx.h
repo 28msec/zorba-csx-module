@@ -7,6 +7,10 @@
 #include <zorba/function.h>
 #include <opencsx/csxstdmanager.h>
 #include <opencsx/csxhandler.h>
+#include <opencsx/csxstdattributes.h>
+#include <opencsx/stdvocab.h>
+#include <opencsx/csxsax2stdparser.h>
+#include <vector>
 
 namespace zorba { namespace csx {
 
@@ -52,8 +56,7 @@ namespace zorba { namespace csx {
       }
 
     protected:
-      const CSXModule* theModule;
-
+      const CSXModule *theModule;
   };
 
   class SerializeFunction : public ContextualExternalFunction{
@@ -82,6 +85,33 @@ namespace zorba { namespace csx {
 
   protected:
     const CSXModule* theModule;
+  };
+
+  class CSXParserHandler : public opencsx::CSXHandler {
+  public:
+    void startDocument();
+    void endDocument();
+    void startElement(const string uri, const string localname, const string prefix);
+    void startElement(const string uri, const string localname, const string prefix, const opencsx::CSXStdAttributes* attrs);
+    void endElement(const string uri, const string localname, const string qname);
+    void attribute(const string uri, const string localname, const string qname, const string value);
+    void characters(const string chars);
+    void declareNamespace(const string prefix, const string uri);
+    void processingInstruction(const string target, const string data);
+    void comment(const string chars);
+    void startPrefixMapping(const string prefix, const string uri);
+    void endPrefixMapping(const string prefix);
+    vector<Item> getVectorItem();
+    CSXParserHandler(void);
+    virtual ~CSXParserHandler(void);
+  private:
+    vector<Item> m_itemStack;
+    vector<pair<zorba::String,zorba::String>> m_nsVector;
+    Item m_currentItem;
+    Item m_defaultType;
+    Item m_defaultAttrType;
+    Item m_parent;
+    Item m_emptyItem; // needed to have a false NULL item
   };
 
 }/*csx namespace*/}/*zorba namespace*/
