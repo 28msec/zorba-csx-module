@@ -202,7 +202,7 @@ namespace zorba { namespace csx {
   }
 
   /* CSXHandler implementation here */
-  CSXParserHandler::CSXParserHandler(void):m_ptrParent(NULL){
+  CSXParserHandler::CSXParserHandler(void){
     m_defaultType = Zorba::getInstance(0)->getItemFactory()->createQName(zorba::String("http://www.w3.org/2001/XMLSchema"),zorba::String("untyped"));
     m_defaultAttrType = Zorba::getInstance(0)->getItemFactory()->createQName(zorba::String("http://www.w3.org/2001/XMLSchema"),zorba::String("AnyAtomicType"));
   }
