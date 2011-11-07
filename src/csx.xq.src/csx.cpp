@@ -215,15 +215,25 @@ namespace zorba { namespace csx {
     m_nsVector.clear();
   }
 
+  void printVector(vector<pair<zorba::String, zorba::String>> v){
+    cout << "[";
+    for(vector<pair<zorba::String, zorba::String>>::iterator it = v.begin(); it != v.end(); it++){
+      cout << "[" << it->first << ", " << it->second << "]" << endl;
+    }
+    cout << "]" << endl;
+  }
+
   void CSXParserHandler::startElement(const string uri, const string localname, const string prefix, const opencsx::CSXStdAttributes* attrs){
     Item m_possibleParent;
     zorba::String zUri = zorba::String(uri);
     zorba::String zLocalName = zorba::String(localname);
-    zorba::String zPrefix = zorba::String(prefix);
+    zorba::String zPrefix = (prefix!="")?zorba::String(localname):zorba::String(prefix+":"+localname);
     Zorba* z = Zorba::getInstance(0);
+    cout << "nodename composites: zUri: " << zUri << " zPrefix: " << zPrefix << " zLocalName: " << zLocalName << endl;
     Item nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zLocalName);
     Item attrNodeValue;
-    m_possibleParent = Zorba::getInstance(0)->getItemFactory()->createElementNode(m_parent, nodeName, m_defaultType, false, false, m_nsVector);
+    printVector(m_nsVector);
+    m_possibleParent = z->getItemFactory()->createElementNode(m_parent, nodeName, m_defaultType, false, false, m_nsVector);
     if(attrs!= NULL && attrs->getLength() > 0){
       for(int i=0; i<attrs->getLength(); i++){
         zorba::String zAttrName = attrs->getLocalName(i);
@@ -258,6 +268,7 @@ namespace zorba { namespace csx {
   }
 
   void CSXParserHandler::startPrefixMapping(const string prefix, const string uri){
+    cout << "CSXParserHandler>> prefix: " << prefix << " uri: " << uri << endl;
     m_nsVector.push_back(pair<zorba::String,zorba::String>(zorba::String(prefix),zorba::String(uri)));
   }
 
