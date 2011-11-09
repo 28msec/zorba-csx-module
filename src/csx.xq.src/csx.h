@@ -92,7 +92,7 @@ namespace zorba { namespace csx {
     void startDocument();
     void endDocument();
     void startElement(const string uri, const string localname, const string prefix);
-    void startElement(const string uri, const string localname, const string prefix, const opencsx::CSXStdAttributes* attrs);
+    //void startElement(const string uri, const string localname, const string prefix, const opencsx::CSXStdAttributes* attrs);
     void endElement(const string uri, const string localname, const string qname);
     void attribute(const string uri, const string localname, const string qname, const string value);
     void characters(const string chars);
@@ -107,7 +107,6 @@ namespace zorba { namespace csx {
   private:
     vector<Item> m_itemStack;
     vector<pair<zorba::String,zorba::String>> m_nsVector;
-    Item m_currentItem;
     Item m_defaultType;
     Item m_defaultAttrType;
     Item m_parent;

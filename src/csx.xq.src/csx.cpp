@@ -1,5 +1,6 @@
 #include <zorba/item_factory.h>
 #include <zorba/singleton_item_sequence.h>
+#include <zorba/vector_item_sequence.h>
 #include <zorba/item.h>
 #include <zorba/diagnostic_list.h>
 #include <zorba/empty_sequence.h>
@@ -83,7 +84,7 @@ namespace zorba { namespace csx {
     }
 
     v = parserHandler->getVectorItem();
-    return (v.size() > 0)?ItemSequence_t(new SingletonItemSequence(v[0])):NULL;
+    return (v.size() > 0)?ItemSequence_t(new VectorItemSequence(v)):NULL;
   }
 
   /*******************************************************************************************
@@ -208,6 +209,7 @@ namespace zorba { namespace csx {
   }
 
   void CSXParserHandler::startDocument(){
+    //m_emptyItem = Zorba::getInstance(0)
   }
 
   void CSXParserHandler::endDocument(){
@@ -223,48 +225,32 @@ namespace zorba { namespace csx {
     cout << "]" << endl;
   }
 
-  void CSXParserHandler::startElement(const string uri, const string localname, const string prefix, const opencsx::CSXStdAttributes* attrs){
-    Item m_possibleParent;
+  void CSXParserHandler::startElement(const string uri, const string localname, const string prefix){
+    Item thisNode;
     zorba::String zUri = zorba::String(uri);
     zorba::String zLocalName = zorba::String(localname);
-    zorba::String zPrefix = (prefix!="")?zorba::String(localname):zorba::String(prefix+":"+localname);
+    zorba::String zPrefix = zorba::String(prefix);
     Zorba* z = Zorba::getInstance(0);
     cout << "nodename composites: zUri: " << zUri << " zPrefix: " << zPrefix << " zLocalName: " << zLocalName << endl;
     Item nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zLocalName);
     Item attrNodeValue;
     printVector(m_nsVector);
-    m_possibleParent = z->getItemFactory()->createElementNode(m_parent, nodeName, m_defaultType, false, false, m_nsVector);
-    if(attrs!= NULL && attrs->getLength() > 0){
-      for(int i=0; i<attrs->getLength(); i++){
-        zorba::String zAttrName = attrs->getLocalName(i);
-        zUri = attrs->getURI(i);
-        zPrefix = attrs->getQName(i);
-        nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zLocalName);
-        attrNodeValue = z->getItemFactory()->createString(zorba::String(attrs->getValue(i)));
-        z->getItemFactory()->createAttributeNode(m_possibleParent, nodeName, m_defaultAttrType, attrNodeValue);
-      }
-    }
-    if(m_parent.isNull() || prefix == m_parent.getPrefix().str()+m_parent.getLocalName().str()){
-      // m_ptrParent is the actual father so replace m_ptrParent for this node 
-      // so if there is any childen then they will need to have a pointer to this
-      // node for creation
-      m_parent = m_possibleParent;
-    }
+    if(m_itemStack.empty())
+      thisNode = z->getItemFactory()->createElementNode(m_parent, nodeName, m_defaultType, false, false, m_nsVector);
+    else
+      thisNode = z->getItemFactory()->createElementNode(m_itemStack.back(), nodeName, m_defaultType, false, false, m_nsVector);
+    m_itemStack.push_back(thisNode);
   }
 
   void CSXParserHandler::endElement(const string uri, const string localname, const string qname){
-    if(m_parent.isNull()){
-      // the current parent is the root element so this node should be added
-      // to m_itemVector
-      m_itemStack.push_back(m_currentItem);
-    }
-    m_parent = (m_parent.isNull())?m_parent.getParent():m_emptyItem;
+    if(!m_itemStack.back().getParent().isNull())
+      m_itemStack.pop_back();
     m_nsVector.clear();
   }
 
   void CSXParserHandler::characters(const string chars){
     // create text node
-    m_currentItem = Zorba::getInstance(0)->getItemFactory()->createTextNode(m_parent, chars);
+    Zorba::getInstance(0)->getItemFactory()->createTextNode(m_itemStack.back(), chars);
   }
 
   void CSXParserHandler::startPrefixMapping(const string prefix, const string uri){
@@ -276,13 +262,14 @@ namespace zorba { namespace csx {
     // No need to implement ... I think
   }
 
-  void CSXParserHandler::startElement
-  (const string uri, const string localname, const string prefix){
-    // No need to implement
-  }
-
   void CSXParserHandler::attribute(const string uri, const string localname, const string qname, const string value){
-    // No need to implement
+    zorba::String zAttrName = zorba::String(localname);
+    zorba::String zUri = zorba::String(uri);
+    zorba::String zPrefix = zorba::String(qname);
+    Zorba* z = Zorba::getInstance(0);
+    Item nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zAttrName);
+    Item attrNodeValue = z->getItemFactory()->createString(zorba::String(value));
+    z->getItemFactory()->createAttributeNode(m_itemStack.back(), nodeName, m_defaultAttrType, attrNodeValue);
   }
 
   void CSXParserHandler::declareNamespace(const string prefix, const string uri){
