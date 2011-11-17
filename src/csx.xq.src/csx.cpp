@@ -62,9 +62,9 @@ namespace zorba { namespace csx {
       const zorba::DynamicContext* aDctx) const 
   {
     CSXParserHandler *parserHandler;
-    opencsx::CSXSAX2StdParser *parser;
+    opencsx::CSXParser *parser;
     parserHandler = new CSXParserHandler();
-    parser = opencsx::CSXSAX2StdParser::create(opencsx::CSXStdVocabulary::create());
+    parser = opencsx::CSXParser::create(opencsx::CSXStdVocabulary::create());
     parser->setContentHandler(parserHandler);
     vector<Item> v;
 
@@ -118,7 +118,7 @@ namespace zorba { namespace csx {
     return sKind;
   }
 
-  void transverse(Iterator_t iter, opencsx::CSXHandler* handler){
+  void traverse(Iterator_t iter, opencsx::CSXHandler* handler){
     // given a iterator transverse the item()* tree
     Item name, item, attr, aName;
     Iterator_t children, attrs;
@@ -153,7 +153,7 @@ namespace zorba { namespace csx {
           children = item.getChildren();
           if(!children.isNull()){
             // there is at least one child
-            transverse(children, handler);
+            traverse(children, handler);
           }
 
           cout << "<EndElement>" << endl;
@@ -187,7 +187,7 @@ namespace zorba { namespace csx {
       csxHandler->startDocument();
       for(int i=0; i<aArgs.size(); i++){
         Iterator_t iter = aArgs[i]->getIterator();
-        transverse(iter, csxHandler);
+        traverse(iter, csxHandler);
       }
       cout << "<EndDocument>" << endl;
       csxHandler->endDocument();
@@ -225,7 +225,7 @@ namespace zorba { namespace csx {
     cout << "]" << endl;
   }
 
-  void CSXParserHandler::startElement(const string uri, const string localname, const string prefix){
+  void CSXParserHandler::startElement(const string &uri, const string &localname, const string &prefix){
     Item thisNode;
     zorba::String zUri = zorba::String(uri);
     zorba::String zLocalName = zorba::String(localname);
@@ -242,27 +242,27 @@ namespace zorba { namespace csx {
     m_itemStack.push_back(thisNode);
   }
 
-  void CSXParserHandler::endElement(const string uri, const string localname, const string qname){
+  void CSXParserHandler::endElement(const string &uri, const string &localname, const string &qname){
     if(!m_itemStack.back().getParent().isNull())
       m_itemStack.pop_back();
     m_nsVector.clear();
   }
 
-  void CSXParserHandler::characters(const string chars){
+  void CSXParserHandler::characters(const string &chars){
     // create text node
     Zorba::getInstance(0)->getItemFactory()->createTextNode(m_itemStack.back(), chars);
   }
 
-  void CSXParserHandler::startPrefixMapping(const string prefix, const string uri){
+  void CSXParserHandler::startPrefixMapping(const string &prefix, const string &uri){
     cout << "CSXParserHandler>> prefix: " << prefix << " uri: " << uri << endl;
     m_nsVector.push_back(pair<zorba::String,zorba::String>(zorba::String(prefix),zorba::String(uri)));
   }
 
-  void CSXParserHandler::endPrefixMapping(const string prefix){
+  void CSXParserHandler::endPrefixMapping(const string &prefix){
     // No need to implement ... I think
   }
 
-  void CSXParserHandler::attribute(const string uri, const string localname, const string qname, const string value){
+  void CSXParserHandler::attribute(const string &uri, const string &localname, const string &qname, const string &value){
     zorba::String zAttrName = zorba::String(localname);
     zorba::String zUri = zorba::String(uri);
     zorba::String zPrefix = zorba::String(qname);
@@ -272,15 +272,15 @@ namespace zorba { namespace csx {
     z->getItemFactory()->createAttributeNode(m_itemStack.back(), nodeName, m_defaultAttrType, attrNodeValue);
   }
 
-  void CSXParserHandler::declareNamespace(const string prefix, const string uri){
+  void CSXParserHandler::declareNamespace(const string &prefix, const string &uri){
     // No need to implement
   }
 
-  void CSXParserHandler::processingInstruction(const string target, const string data){
+  void CSXParserHandler::processingInstruction(const string &target, const string &data){
     // No need to implement
   }
 
-  void CSXParserHandler::comment(const string chars){
+  void CSXParserHandler::comment(const string &chars){
     // No need to implement
   }
 

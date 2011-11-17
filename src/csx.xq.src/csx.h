@@ -9,7 +9,7 @@
 #include <opencsx/csxhandler.h>
 #include <opencsx/csxstdattributes.h>
 #include <opencsx/stdvocab.h>
-#include <opencsx/csxsax2stdparser.h>
+#include <opencsx/csxparser.h>
 #include <vector>
 
 namespace zorba { namespace csx {
@@ -91,16 +91,15 @@ namespace zorba { namespace csx {
   public:
     void startDocument();
     void endDocument();
-    void startElement(const string uri, const string localname, const string prefix);
-    //void startElement(const string uri, const string localname, const string prefix, const opencsx::CSXStdAttributes* attrs);
-    void endElement(const string uri, const string localname, const string qname);
-    void attribute(const string uri, const string localname, const string qname, const string value);
-    void characters(const string chars);
-    void declareNamespace(const string prefix, const string uri);
-    void processingInstruction(const string target, const string data);
-    void comment(const string chars);
-    void startPrefixMapping(const string prefix, const string uri);
-    void endPrefixMapping(const string prefix);
+    void startElement(const string &uri, const string &localname, const string &prefix);
+    void endElement(const string &uri, const string &localname, const string &qname);
+    void attribute(const string &uri, const string &localname, const string &qname, const string &value);
+    void characters(const string &chars);
+    void declareNamespace(const string &prefix, const string &uri);
+    void processingInstruction(const string &target, const string &data);
+    void comment(const string &chars);
+    void startPrefixMapping(const string &prefix, const string &uri);
+    void endPrefixMapping(const string &prefix);
     vector<Item> getVectorItem();
     CSXParserHandler(void);
     virtual ~CSXParserHandler(void);
