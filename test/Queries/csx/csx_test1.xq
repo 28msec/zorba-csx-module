@@ -1,0 +1,2 @@
+import module namespace csx = "http://www.zorba-xquery.com/modules/csx";
+csx:serialize(<foo:a id="2" more="3" xmlns:foo="http://www.zorba-xquery.com/"><b>hi there</b><foo:b id="4">hello</foo:b><foo:c/></foo:a>)

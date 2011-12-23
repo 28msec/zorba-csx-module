@@ -269,7 +269,6 @@ namespace zorba { namespace csx {
 
   void CSXParserHandler::endPrefixMapping(const string &prefix){
     //cout << "endprefix>>CSXParserHandler>> prefix: " << prefix  << endl;
-    
   }
 
   void CSXParserHandler::attribute(const string &uri, const string &localname, const string &qname, const string &value){
