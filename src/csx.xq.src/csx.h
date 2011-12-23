@@ -105,7 +105,7 @@ namespace zorba { namespace csx {
     virtual ~CSXParserHandler(void);
   private:
     vector<Item> m_itemStack;
-    vector<pair<zorba::String,zorba::String>> m_nsVector;
+    vector<pair<zorba::String,zorba::String> > m_nsVector;
     Item m_defaultType;
     Item m_defaultAttrType;
     Item m_parent;

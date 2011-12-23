@@ -226,9 +226,9 @@ namespace zorba { namespace csx {
     m_nsVector.clear();
   }
 
-  void printVector(vector<pair<zorba::String, zorba::String>> v){
+  void printVector(vector<pair<zorba::String, zorba::String> > v){
     cout << "[";
-    for(vector<pair<zorba::String, zorba::String>>::iterator it = v.begin(); it != v.end(); it++){
+    for(vector<pair<zorba::String, zorba::String> >::iterator it = v.begin(); it != v.end(); it++){
       cout << "[" << it->first << ", " << it->second << "]" << endl;
     }
     cout << "]" << endl;
