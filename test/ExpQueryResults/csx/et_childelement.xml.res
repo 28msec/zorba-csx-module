@@ -1,0 +1,1 @@
+<xml><child></child></xml>
