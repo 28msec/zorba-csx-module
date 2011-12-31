@@ -95,11 +95,9 @@ namespace zorba { namespace csx {
     void endElement(const string &uri, const string &localname, const string &qname);
     void attribute(const string &uri, const string &localname, const string &qname, const string &value);
     void characters(const string &chars);
-    void declareNamespace(const string &prefix, const string &uri);
     void processingInstruction(const string &target, const string &data);
     void comment(const string &chars);
-    void startPrefixMapping(const string &prefix, const string &uri);
-    void endPrefixMapping(const string &prefix);
+    void definePrefix(const string &prefix, const string &uri);
     vector<Item> getVectorItem();
     CSXParserHandler(void);
     virtual ~CSXParserHandler(void);

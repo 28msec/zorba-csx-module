@@ -1,0 +1,1 @@
+<foo:xml xmlns:bar='http://www.opencsx.org/uri2' xmlns:foo='http://www.opencsx.org'><foo:child bar:zot='1'><bar:grandchild xmlns:baz='http://www.opencsx.org/uri3'><baz:greatgrandchild></baz:greatgrandchild></bar:grandchild><bar:grandchild></bar:grandchild></foo:child></foo:xml>
