@@ -5,11 +5,9 @@
 #include <zorba/external_module.h>
 #include <zorba/store_manager.h>
 #include <zorba/function.h>
-#include <opencsx/csxstdmanager.h>
 #include <opencsx/csxhandler.h>
-#include <opencsx/csxstdattributes.h>
+#include <opencsx/csxprocessor.h>
 #include <opencsx/stdvocab.h>
-#include <opencsx/csxparser.h>
 #include <vector>
 
 namespace zorba { namespace csx {
@@ -39,9 +37,13 @@ namespace zorba { namespace csx {
 
   class ParseFunction : public ContextualExternalFunction{
     public:
-      ParseFunction(const CSXModule* aModule) : theModule(aModule) {}
+      ParseFunction(const CSXModule* aModule) : theModule(aModule) {
+        theProcessor = opencsx::CSXProcessor::create();
+      }
 
-      virtual ~ParseFunction(){}
+      virtual ~ParseFunction() {
+        delete theProcessor;
+      }
 
       virtual zorba::String
         getLocalName() const { return "parse"; }
@@ -57,18 +59,18 @@ namespace zorba { namespace csx {
 
     protected:
       const CSXModule *theModule;
+  private:
+    opencsx::CSXProcessor* theProcessor;
   };
 
   class SerializeFunction : public ContextualExternalFunction{
-  private:
-    opencsx::CSXStdManager* theCsxManager;
   public:
     SerializeFunction(const CSXModule* aModule) : theModule(aModule) {
-      theCsxManager = opencsx::CSXStdManager::create();
+      theProcessor = opencsx::CSXProcessor::create();
     }
 
     virtual ~SerializeFunction(){
-      delete theCsxManager;
+      delete theProcessor;
     }
 
     virtual zorba::String
@@ -85,16 +87,23 @@ namespace zorba { namespace csx {
 
   protected:
     const CSXModule* theModule;
+  private:
+    opencsx::CSXProcessor* theProcessor;
   };
 
   class CSXParserHandler : public opencsx::CSXHandler {
   public:
     void startDocument();
     void endDocument();
-    void startElement(const string &uri, const string &localname, const string &prefix);
-    void endElement(const string &uri, const string &localname, const string &qname);
-    void attribute(const string &uri, const string &localname, const string &qname, const string &value);
+    void startElement(const string &uri, const string &localname,
+                      const string &prefix, const opencsx::CSXHandler::NsBindings* bindings);
+    void endElement(const string &uri, const string &localname, const string &prefix);
+    void attribute(const string &uri, const string &localname, const string &qprefix, const string &value);
+    void attribute(const string &uri, const string &localname, const string &prefix,
+                   opencsx::AtomicType const& type, opencsx::AtomicValue const& value);
     void characters(const string &chars);
+    void atomicValue(const opencsx::AtomicType &type,
+                     const opencsx::AtomicValue &value);
     void processingInstruction(const string &target, const string &data);
     void comment(const string &chars);
     void definePrefix(const string &prefix, const string &uri);

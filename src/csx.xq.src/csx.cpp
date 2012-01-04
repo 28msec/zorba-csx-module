@@ -95,20 +95,22 @@ namespace zorba { namespace csx {
         int kind = item.getNodeKind();
         //cout << "node type: " << getKindAsString(kind) << endl;
         if(kind == zorba::store::StoreConsts::elementNode){
-          // First report any local namespace bindings on this element
+          // Map local namespace bindings to CSXHandler form
           Item::NsBindings bindings;
           item.getNamespaceBindings(bindings, Item::ONLY_LOCAL_NAMESPACES);
           Item::NsBindings::const_iterator ite = bindings.begin();
           Item::NsBindings::const_iterator end = bindings.end();
+          opencsx::CSXHandler::NsBindings csxbindings;
           for (; ite != end; ++ite) {
-            handler->definePrefix(ite->first.str(), ite->second.str());
+            csxbindings.push_back(std::pair<std::string,std::string>
+                                  (ite->first.str(), ite->second.str()));
           }
 
           //cout << "<StartElement>" << endl;
           item.getNodeName(name);
           //cout << "name: " << name.getNamespace() << "::" << name.getPrefix() << "::" << name.getLocalName() << endl;
           handler->startElement(name.getNamespace().str(), name.getLocalName().str(),
-                                name.getPrefix().str());
+                                name.getPrefix().str(), &csxbindings);
 
           // go thru attributes
           attrs = item.getAttributes();
@@ -159,7 +161,7 @@ namespace zorba { namespace csx {
     void *lStore = zorba::StoreManager::getStore();
     Zorba* lZorba = Zorba::getInstance(lStore);
     stringstream theOutputStream;
-    opencsx::CSXHandler* csxHandler = theCsxManager->createSerializer(theOutputStream);
+    opencsx::CSXHandler* csxHandler = theProcessor->createSerializer(theOutputStream);
 
     try {
       //cout << "<StartDocument>" << endl;
@@ -190,11 +192,7 @@ namespace zorba { namespace csx {
       const zorba::StaticContext* aSctx,
       const zorba::DynamicContext* aDctx) const 
   {
-    CSXParserHandler *parserHandler;
-    opencsx::CSXParser *parser;
-    parserHandler = new CSXParserHandler();
-    parser = opencsx::CSXParser::create(opencsx::CSXStdVocabulary::create());
-    parser->setHandler(parserHandler);
+    auto_ptr<CSXParserHandler> parserHandler(new CSXParserHandler());
 
     try {
       for(int i=0; i<aArgs.size(); i++){
@@ -205,7 +203,7 @@ namespace zorba { namespace csx {
           string iString = zorba::encoding::Base64::decode(input.getStringValue()).str();
           stringstream ss(iString);
           parserHandler->startDocument();
-          parser->parse(ss);
+          theProcessor->parse(ss, parserHandler.get());
           input.close();
         }
         iter->close();
@@ -220,7 +218,7 @@ namespace zorba { namespace csx {
     return ItemSequence_t(vSeq);
   }
 
-  /*** Start the CSXHandler implementation ***/
+  /*** Start the CSXParserHandler implementation ***/
 
   CSXParserHandler::CSXParserHandler(void){
     m_defaultType = Zorba::getInstance(0)->getItemFactory()->createQName(zorba::String("http://www.w3.org/2001/XMLSchema"),zorba::String("untyped"));
@@ -236,7 +234,6 @@ namespace zorba { namespace csx {
       m_itemStack[i].close();
     }
     m_itemStack.clear();
-    m_nsVector.clear();
   }
 
   void printVector(vector<pair<zorba::String, zorba::String> > v){
@@ -247,27 +244,35 @@ namespace zorba { namespace csx {
     cout << "]" << endl;
   }
 
-  void CSXParserHandler::startElement(const string &uri, const string &localname, const string &prefix){
-    Item thisNode;
+  void CSXParserHandler::startElement(const string &uri, const string &localname,
+                                      const string &prefix,
+                                      const opencsx::CSXHandler::NsBindings *bindings){
     zorba::String zUri = zorba::String(uri);
     zorba::String zLocalName = zorba::String(localname);
     zorba::String zPrefix = zorba::String(prefix);
     Zorba* z = Zorba::getInstance(0);
     //cout << "nodename composites: zUri: " << zUri << " zPrefix: " << zPrefix << " zLocalName: " << zLocalName << endl;
     Item nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zLocalName);
-    Item attrNodeValue;
-    //printVector(m_nsVector);
-    if(m_itemStack.empty())
-      thisNode = z->getItemFactory()->createElementNode(m_parent, nodeName, m_defaultType, false, false, m_nsVector);
-    else
-      thisNode = z->getItemFactory()->createElementNode(m_itemStack.back(), nodeName, m_defaultType, false, false, m_nsVector);
+
+    opencsx::CSXHandler::NsBindings::const_iterator ite = bindings->begin();
+    opencsx::CSXHandler::NsBindings::const_iterator end = bindings->end();
+    Item::NsBindings itembindings;
+    for (; ite != end; ++ite) {
+      itembindings.push_back(pair<zorba::String,zorba::String>
+                             (zorba::String(ite->first), zorba::String(ite->second)));
+    }
+
+    Item parent = m_itemStack.empty() ? m_parent : m_itemStack.back();
+    Item thisNode;
+    thisNode = z->getItemFactory()->createElementNode(parent, nodeName,
+                                                      m_defaultType, false, false,
+                                                      itembindings);
     m_itemStack.push_back(thisNode);
   }
 
   void CSXParserHandler::endElement(const string &uri, const string &localname, const string &qname){
     if(!m_itemStack.back().getParent().isNull())
       m_itemStack.pop_back();
-    m_nsVector.clear();
   }
 
   void CSXParserHandler::characters(const string &chars){
@@ -275,19 +280,28 @@ namespace zorba { namespace csx {
     Zorba::getInstance(0)->getItemFactory()->createTextNode(m_itemStack.back(), chars);
   }
 
-  void CSXParserHandler::definePrefix(const string &prefix, const string &uri){
-    //cout << "startprefix>>CSXParserHandler>> prefix: " << prefix << " uri: " << uri << endl;
-    m_nsVector.push_back(pair<zorba::String,zorba::String>(zorba::String(prefix),zorba::String(uri)));
+  void CSXParserHandler::atomicValue(const opencsx::AtomicType &type,
+                                     const opencsx::AtomicValue &value) {
+    // QQQ unimplemented
+    assert(false);
   }
 
-  void CSXParserHandler::attribute(const string &uri, const string &localname, const string &qname, const string &value){
+  void CSXParserHandler::attribute(const string &uri, const string &localname,
+                                   const string &prefix, const string &value){
     zorba::String zAttrName = zorba::String(localname);
     zorba::String zUri = zorba::String(uri);
-    zorba::String zPrefix = zorba::String(qname);
+    zorba::String zPrefix = zorba::String(prefix);
     Zorba* z = Zorba::getInstance(0);
     Item nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zAttrName);
     Item attrNodeValue = z->getItemFactory()->createString(zorba::String(value));
     z->getItemFactory()->createAttributeNode(m_itemStack.back(), nodeName, m_defaultAttrType, attrNodeValue);
+  }
+
+  void CSXParserHandler::attribute(const string &uri, const string &localname,
+                                   const string &qname, const opencsx::AtomicType &type,
+                                   const opencsx::AtomicValue &value) {
+    // QQQ unimplemented
+    assert(false);
   }
 
   void CSXParserHandler::processingInstruction(const string &target, const string &data){
@@ -306,7 +320,6 @@ namespace zorba { namespace csx {
 
   CSXParserHandler::~CSXParserHandler(){
     m_itemStack.clear();
-    m_nsVector.clear();
   }
  
 }/*namespace csx*/ }/*namespace zorba*/
