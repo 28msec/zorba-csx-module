@@ -97,7 +97,8 @@ namespace zorba { namespace csx {
         if(kind == zorba::store::StoreConsts::elementNode){
           // Map local namespace bindings to CSXHandler form
           Item::NsBindings bindings;
-          item.getNamespaceBindings(bindings, Item::ONLY_LOCAL_NAMESPACES);
+          item.getNamespaceBindings(bindings,
+                                    zorba::store::StoreConsts::ONLY_LOCAL_NAMESPACES);
           Item::NsBindings::const_iterator ite = bindings.begin();
           Item::NsBindings::const_iterator end = bindings.end();
           opencsx::CSXHandler::NsBindings csxbindings;
