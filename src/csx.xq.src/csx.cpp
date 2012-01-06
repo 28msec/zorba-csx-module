@@ -96,11 +96,11 @@ namespace zorba { namespace csx {
         //cout << "node type: " << getKindAsString(kind) << endl;
         if(kind == zorba::store::StoreConsts::elementNode){
           // Map local namespace bindings to CSXHandler form
-          Item::NsBindings bindings;
+          zorba::NsBindings bindings;
           item.getNamespaceBindings(bindings,
                                     zorba::store::StoreConsts::ONLY_LOCAL_NAMESPACES);
-          Item::NsBindings::const_iterator ite = bindings.begin();
-          Item::NsBindings::const_iterator end = bindings.end();
+          zorba::NsBindings::const_iterator ite = bindings.begin();
+          zorba::NsBindings::const_iterator end = bindings.end();
           opencsx::CSXHandler::NsBindings csxbindings;
           for (; ite != end; ++ite) {
             csxbindings.push_back(std::pair<std::string,std::string>
@@ -257,7 +257,7 @@ namespace zorba { namespace csx {
 
     opencsx::CSXHandler::NsBindings::const_iterator ite = bindings->begin();
     opencsx::CSXHandler::NsBindings::const_iterator end = bindings->end();
-    Item::NsBindings itembindings;
+    zorba::NsBindings itembindings;
     for (; ite != end; ++ite) {
       itembindings.push_back(pair<zorba::String,zorba::String>
                              (zorba::String(ite->first), zorba::String(ite->second)));
