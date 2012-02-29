@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
 
 #include "csx.h"
 
@@ -162,6 +163,9 @@ namespace zorba { namespace csx {
     void *lStore = zorba::StoreManager::getStore();
     Zorba* lZorba = Zorba::getInstance(lStore);
     stringstream theOutputStream;
+    // QQQ get this from fetch() somehow
+    ifstream vocab("foo.voc");
+    theProcessor->loadVocabulary(vocab);
     opencsx::CSXHandler* csxHandler = theProcessor->createSerializer(theOutputStream);
 
     try {
