@@ -208,6 +208,9 @@ namespace zorba { namespace csx {
           string iString = zorba::encoding::Base64::decode(input.getStringValue()).str();
           stringstream ss(iString);
           parserHandler->startDocument();
+          // QQQ get this from fetch() somehow
+          ifstream vocab("foo.voc");
+          theProcessor->loadVocabulary(vocab);
           theProcessor->parse(ss, parserHandler.get());
           input.close();
         }
