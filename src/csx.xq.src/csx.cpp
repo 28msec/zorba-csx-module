@@ -85,10 +85,59 @@ namespace zorba { namespace csx {
     return sKind;
   }
 
+  opencsx::AtomicType getTypedData(Item item, opencsx::AtomicValue *v){
+    opencsx::AtomicType oType;
+    store::SchemaTypeCode iType = item.getTypeCode();
+    string str;
+    cout << "Item Type: ";
+    switch(iType){
+    case store::XS_BOOLEAN:
+      cout << "boolean";
+      oType = opencsx::DT_BOOLEAN;
+      v->f_bool = item.getBooleanValue();
+      break;
+    case store::XS_BYTE:
+      cout << "byte";
+      oType = opencsx::DT_BYTE;
+      v->f_char = (unsigned char)item.getUnsignedIntValue();
+      break;
+    case store::XS_INT:
+      cout << "integer";
+      oType = opencsx::DT_INT;
+      v->f_int = item.getIntValue();
+      break;
+    case store::XS_LONG:
+      cout << "long";
+      oType = opencsx::DT_LONG;
+      v->f_long = item.getLongValue();
+      break;
+    case store::XS_FLOAT:
+      cout << "float";
+      oType = opencsx::DT_FLOAT;
+      v->f_float = (float)item.getDoubleValue();
+      break;
+    case store::XS_DOUBLE:
+      cout << "double";
+      oType = opencsx::DT_DOUBLE;
+      v->f_double = item.getDoubleValue();
+      break;
+    case store::XS_STRING:
+    case store::XS_ANY_ATOMIC:
+    default:
+      oType = opencsx::DT_STRING;
+      cout << "string/any_atomic/other";
+      break;
+    }
+    cout << endl;
+    return oType;
+  }
+
   void traverse(Iterator_t iter, opencsx::CSXHandler* handler){
     // given a iterator transverse the item()* tree
     Item name, item, attr, aName;
     Iterator_t children, attrs;
+    opencsx::AtomicType t;
+    opencsx::AtomicValue v;
     // here comes the magic :)
     iter->open();
     while(iter->next(item)){
@@ -110,9 +159,13 @@ namespace zorba { namespace csx {
 
           //cout << "<StartElement>" << endl;
           item.getNodeName(name);
-          //cout << "name: " << name.getNamespace() << "::" << name.getPrefix() << "::" << name.getLocalName() << endl;
-          handler->startElement(name.getNamespace().str(), name.getLocalName().str(),
-                                name.getPrefix().str(), &csxbindings);
+          string ns, pr, ln;
+          cout << "name: " << name.getNamespace() << "::" << name.getPrefix() << "::" << name.getLocalName() << endl;
+          ns = name.getNamespace().str();
+          pr = name.getPrefix().str();
+          ln = name.getLocalName().str();
+          cout << "str name: " << ns << "::" << pr << "::" << ln << endl;
+          handler->startElement(ns, ln, pr, &csxbindings);
 
           // go thru attributes
           attrs = item.getAttributes();
@@ -124,8 +177,9 @@ namespace zorba { namespace csx {
               attr.getNodeName(aName);
               //cout << "attr name: " << aName.getNamespace() << "::" << aName.getPrefix() << "::" << aName.getLocalName() << endl;
               //cout << "attr text: " << attr.getStringValue() << endl;
+              t = getTypedData(attr,&v);
               handler->attribute(aName.getNamespace().str(), aName.getLocalName().str(),
-                                 aName.getPrefix().str(), attr.getStringValue().str());
+                                 aName.getPrefix().str(), t, v);
             }
           }
 
@@ -141,7 +195,8 @@ namespace zorba { namespace csx {
         }
         else if (kind == zorba::store::StoreConsts::textNode) {
           //cout << "<Characters>" << endl;
-          handler->characters(item.getStringValue().str());
+          t = getTypedData(item,&v);
+          handler->atomicValue(t,v);
           children = NULL;
           //cout << "text content: " << item.getStringValue() << endl;
         }
@@ -252,8 +307,8 @@ namespace zorba { namespace csx {
     cout << "]" << endl;
   }
 
-  void CSXParserHandler::startElement(const string &uri, const string &localname,
-                                      const string &prefix,
+  void CSXParserHandler::startElement(const string uri, const string localname,
+                                      const string prefix,
                                       const opencsx::CSXHandler::NsBindings *bindings){
     zorba::String zUri = zorba::String(uri);
     zorba::String zLocalName = zorba::String(localname);
@@ -333,11 +388,11 @@ namespace zorba { namespace csx {
 }/*namespace csx*/ }/*namespace zorba*/
 
 #ifdef WIN32
-#  define DLL_EXPORT __declspec(dllexport)
+#  define CSX_DLL_EXPORT __declspec(dllexport)
 #else
 #  define DLL_EXPORT __attribute__ ((visibility("default")))
 #endif
 
-extern "C" DLL_EXPORT zorba::ExternalModule* createModule() {
+extern "C" CSX_DLL_EXPORT zorba::ExternalModule* createModule() {
   return new zorba::csx::CSXModule();
 }
