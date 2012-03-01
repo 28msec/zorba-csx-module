@@ -85,59 +85,55 @@ namespace zorba { namespace csx {
     return sKind;
   }
 
-  opencsx::AtomicType getTypedData(Item item, opencsx::AtomicValue *v){
-    opencsx::AtomicType oType;
+  void getTypedData(Item item, opencsx::AtomicValue *v){
     store::SchemaTypeCode iType = item.getTypeCode();
-    string str;
-    cout << "Item Type: ";
+    //cout << "Item Type: ";
     switch(iType){
     case store::XS_BOOLEAN:
       cout << "boolean";
-      oType = opencsx::DT_BOOLEAN;
-      v->f_bool = item.getBooleanValue();
+      v->m_type = opencsx::DT_BOOLEAN;
+      v->m_value.f_bool = item.getBooleanValue();
       break;
     case store::XS_BYTE:
       cout << "byte";
-      oType = opencsx::DT_BYTE;
-      v->f_char = (unsigned char)item.getUnsignedIntValue();
+      v->m_type = opencsx::DT_BYTE;
+      v->m_value.f_char = (unsigned char)item.getUnsignedIntValue();
       break;
     case store::XS_INT:
-      cout << "integer";
-      oType = opencsx::DT_INT;
-      v->f_int = item.getIntValue();
+      //cout << "integer";
+      v->m_type = opencsx::DT_INT;
+      v->m_value.f_int = item.getIntValue();
       break;
     case store::XS_LONG:
       cout << "long";
-      oType = opencsx::DT_LONG;
-      v->f_long = item.getLongValue();
+      v->m_type = opencsx::DT_LONG;
+      v->m_value.f_long = item.getLongValue();
       break;
     case store::XS_FLOAT:
       cout << "float";
-      oType = opencsx::DT_FLOAT;
-      v->f_float = (float)item.getDoubleValue();
+      v->m_type = opencsx::DT_FLOAT;
+      v->m_value.f_float = (float)item.getDoubleValue();
       break;
     case store::XS_DOUBLE:
       cout << "double";
-      oType = opencsx::DT_DOUBLE;
-      v->f_double = item.getDoubleValue();
+      v->m_type = opencsx::DT_DOUBLE;
+      v->m_value.f_double = item.getDoubleValue();
       break;
     case store::XS_STRING:
     case store::XS_ANY_ATOMIC:
     default:
-      oType = opencsx::DT_STRING;
-      cout << "string/any_atomic/other";
+      v->m_type = opencsx::DT_STRING;
+      v->m_string = item.getStringValue().str();
       break;
     }
-    cout << endl;
-    return oType;
   }
 
-  void traverse(Iterator_t iter, opencsx::CSXHandler* handler){
+  bool traverse(Iterator_t iter, opencsx::CSXHandler* handler, bool skip_text){
     // given a iterator transverse the item()* tree
     Item name, item, attr, aName;
     Iterator_t children, attrs;
-    opencsx::AtomicType t;
     opencsx::AtomicValue v;
+    bool saw_atomics = false;
     // here comes the magic :)
     iter->open();
     while(iter->next(item)){
@@ -160,11 +156,11 @@ namespace zorba { namespace csx {
           //cout << "<StartElement>" << endl;
           item.getNodeName(name);
           string ns, pr, ln;
-          cout << "name: " << name.getNamespace() << "::" << name.getPrefix() << "::" << name.getLocalName() << endl;
+          //cout << "name: " << name.getNamespace() << "::" << name.getPrefix() << "::" << name.getLocalName() << endl;
           ns = name.getNamespace().str();
           pr = name.getPrefix().str();
           ln = name.getLocalName().str();
-          cout << "str name: " << ns << "::" << pr << "::" << ln << endl;
+          //cout << "str name: " << ns << "::" << pr << "::" << ln << endl;
           handler->startElement(ns, ln, pr, &csxbindings);
 
           // go thru attributes
@@ -177,16 +173,28 @@ namespace zorba { namespace csx {
               attr.getNodeName(aName);
               //cout << "attr name: " << aName.getNamespace() << "::" << aName.getPrefix() << "::" << aName.getLocalName() << endl;
               //cout << "attr text: " << attr.getStringValue() << endl;
-              t = getTypedData(attr,&v);
+              getTypedData(attr,&v);
               handler->attribute(aName.getNamespace().str(), aName.getLocalName().str(),
-                                 aName.getPrefix().str(), t, v);
+                                 aName.getPrefix().str(), v);
             }
           }
 
+          // QQQ Hack necessary at the moment - only way to get typed value is
+          // via getAtomizationValue() (poorly named), but it also throws an
+          // exception if there is element-only content.
+          bool has_atomic_values = false;
+          try {
+            children = item.getAtomizationValue();
+            has_atomic_values = traverse(children, handler, false);
+          }
+          catch (ZorbaException &e) {
+            //cout << e << endl;
+          }
           children = item.getChildren();
           if(!children.isNull()){
-            // there is at least one child
-            traverse(children, handler);
+            // there is at least one child. We want to skip any text node children
+            // if we've already processing atomic-value children.
+            traverse(children, handler, has_atomic_values);
           }
 
           //cout << "<EndElement>" << endl;
@@ -195,8 +203,9 @@ namespace zorba { namespace csx {
         }
         else if (kind == zorba::store::StoreConsts::textNode) {
           //cout << "<Characters>" << endl;
-          t = getTypedData(item,&v);
-          handler->atomicValue(t,v);
+          if (!skip_text) {
+            handler->characters(item.getStringValue().str());
+          }
           children = NULL;
           //cout << "text content: " << item.getStringValue() << endl;
         }
@@ -204,9 +213,17 @@ namespace zorba { namespace csx {
           assert(false);
         }
       }
+      else {
+        opencsx::AtomicValue v;
+        getTypedData(item, &v);
+        handler->atomicValue(v);
+        saw_atomics = true;
+      }
     }
     // here ends the magic :(
     iter->close();
+
+    return saw_atomics;
   }
 
   zorba::ItemSequence_t
@@ -228,7 +245,7 @@ namespace zorba { namespace csx {
       csxHandler->startDocument();
       for(int i=0; i<aArgs.size(); i++){
         Iterator_t iter = aArgs[i]->getIterator();
-        traverse(iter, csxHandler);
+        traverse(iter, csxHandler, false);
       }
       //cout << "<EndDocument>" << endl;
       csxHandler->endDocument();
@@ -343,8 +360,7 @@ namespace zorba { namespace csx {
     Zorba::getInstance(0)->getItemFactory()->createTextNode(m_itemStack.back(), chars);
   }
 
-  void CSXParserHandler::atomicValue(const opencsx::AtomicType &type,
-                                     const opencsx::AtomicValue &value) {
+  void CSXParserHandler::atomicValue(const opencsx::AtomicValue &value) {
     // QQQ unimplemented
     assert(false);
   }
@@ -361,8 +377,7 @@ namespace zorba { namespace csx {
   }
 
   void CSXParserHandler::attribute(const string &uri, const string &localname,
-                                   const string &qname, const opencsx::AtomicType &type,
-                                   const opencsx::AtomicValue &value) {
+                                   const string &qname, const opencsx::AtomicValue &value) {
     // QQQ unimplemented
     assert(false);
   }
@@ -390,7 +405,7 @@ namespace zorba { namespace csx {
 #ifdef WIN32
 #  define CSX_DLL_EXPORT __declspec(dllexport)
 #else
-#  define DLL_EXPORT __attribute__ ((visibility("default")))
+#  define CSX_DLL_EXPORT __attribute__ ((visibility("default")))
 #endif
 
 extern "C" CSX_DLL_EXPORT zorba::ExternalModule* createModule() {
