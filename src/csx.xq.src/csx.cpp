@@ -330,8 +330,8 @@ namespace zorba { namespace csx {
     cout << "]" << endl;
   }
 
-  void CSXParserHandler::startElement(const string uri, const string localname,
-                                      const string prefix,
+  void CSXParserHandler::startElement(const string& uri, const string& localname,
+                                      const string& prefix,
                                       const opencsx::CSXHandler::NsBindings *bindings){
     zorba::String zUri = zorba::String(uri);
     zorba::String zLocalName = zorba::String(localname);
