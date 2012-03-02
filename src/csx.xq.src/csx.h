@@ -33,6 +33,8 @@ namespace zorba { namespace csx {
         getExternalFunction(const String& localName);
 
       virtual void destroy();
+
+      void loadVocab(opencsx::CSXProcessor* aProc, Iterator_t aUriIter) const;
   };
 
   class ParseFunction : public ContextualExternalFunction{
@@ -59,63 +61,60 @@ namespace zorba { namespace csx {
 
     protected:
       const CSXModule *theModule;
-  private:
-    opencsx::CSXProcessor* theProcessor;
+    private:
+      opencsx::CSXProcessor* theProcessor;
   };
 
   class SerializeFunction : public ContextualExternalFunction{
-  public:
-    SerializeFunction(const CSXModule* aModule) : theModule(aModule) {
-      theProcessor = opencsx::CSXProcessor::create();
-    }
+    public:
+      SerializeFunction(const CSXModule* aModule) : theModule(aModule) {
+        theProcessor = opencsx::CSXProcessor::create();
+      }
 
-    virtual ~SerializeFunction(){
-      delete theProcessor;
-    }
+      virtual ~SerializeFunction(){
+        delete theProcessor;
+      }
 
-    virtual zorba::String
+      virtual zorba::String
       getLocalName() const { return "serialize"; }
 
-    virtual zorba::ItemSequence_t
+      virtual zorba::ItemSequence_t
       evaluate(const Arguments_t&,
-                const zorba::StaticContext*,
-                const zorba::DynamicContext*) const;
+               const zorba::StaticContext*,
+               const zorba::DynamicContext*) const;
 
-    virtual String getURI() const {
-      return theModule->getURI();
-    }
+      virtual String getURI() const {
+        return theModule->getURI();
+      }
 
-  protected:
-    const CSXModule* theModule;
-  private:
-    opencsx::CSXProcessor* theProcessor;
+    protected:
+      const CSXModule* theModule;
+    private:
+      opencsx::CSXProcessor* theProcessor;
   };
 
   class CSXParserHandler : public opencsx::CSXHandler {
-  public:
-    void startDocument();
-    void endDocument();
-    void startElement(const string uri, const string localname,
-                      const string prefix, const opencsx::CSXHandler::NsBindings* bindings);
-    void endElement(const string &uri, const string &localname, const string &prefix);
-    void attribute(const string &uri, const string &localname, const string &qprefix, const string &value);
-    void attribute(const string &uri, const string &localname, const string &prefix,
-                   opencsx::AtomicValue const& value);
-    void characters(const string &chars);
-    void atomicValue(const opencsx::AtomicValue &value);
-    void processingInstruction(const string &target, const string &data);
-    void comment(const string &chars);
-    void definePrefix(const string &prefix, const string &uri);
-    vector<Item> getVectorItem();
-    CSXParserHandler(void);
-    virtual ~CSXParserHandler(void);
-  private:
-    vector<Item> m_itemStack;
-    vector<pair<zorba::String,zorba::String> > m_nsVector;
-    Item m_defaultType;
-    Item m_defaultAttrType;
-    Item m_parent;
-    Item m_emptyItem; // needed to have a false NULL item
+    public:
+      void startDocument();
+      void endDocument();
+      void startElement(const string uri, const string localname,
+                        const string prefix, const opencsx::CSXHandler::NsBindings* bindings);
+      void endElement(const string &uri, const string &localname, const string &prefix);
+      void attribute(const string &uri, const string &localname, const string &qprefix, const string &value);
+      void attribute(const string &uri, const string &localname, const string &prefix,
+                     opencsx::AtomicValue const& value);
+      void characters(const string &chars);
+      void atomicValue(const opencsx::AtomicValue &value);
+      void processingInstruction(const string &target, const string &data);
+      void comment(const string &chars);
+      CSXParserHandler(vector<Item>& aItems);
+      virtual ~CSXParserHandler();
+    private:
+      vector<Item> m_itemStack;
+      vector<Item>& m_result;
+      Item m_defaultType;
+      Item m_defaultAttrType;
+      Item m_parent;
   };
 
 }/*csx namespace*/}/*zorba namespace*/

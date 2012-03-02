@@ -46,6 +46,19 @@ namespace zorba { namespace csx {
     delete this;
   }
 
+  void CSXModule::loadVocab(opencsx::CSXProcessor *aProc, Iterator_t aUriIter) const
+  {
+    aUriIter->open();
+    Item aUri;
+    while (aUriIter->next(aUri)) {
+      void *lStore = zorba::StoreManager::getStore();
+      Zorba* lZorba = Zorba::getInstance(lStore);
+      Item vocab_item = lZorba->getXmlDataManager()->fetch(aUri.getStringValue());
+      aProc->loadVocabulary(vocab_item.getStream());
+    }
+    aUriIter->close();
+  }
+
   CSXModule::~CSXModule()
   {
     if(!theParseFunction)
@@ -232,28 +245,24 @@ namespace zorba { namespace csx {
       const zorba::StaticContext* aSctx,
       const zorba::DynamicContext* aDctx) const 
   {
-    void *lStore = zorba::StoreManager::getStore();
-    Zorba* lZorba = Zorba::getInstance(lStore);
+    // Second argument is URIs to vocab files (optional)
+    theModule->loadVocab(theProcessor, aArgs[1]->getIterator());
+
     stringstream theOutputStream;
-    // QQQ get this from fetch() somehow
-    ifstream vocab("foo.voc");
-    theProcessor->loadVocabulary(vocab);
     opencsx::CSXHandler* csxHandler = theProcessor->createSerializer(theOutputStream);
 
+    // OpenCSX requires a document to create a CSX section header; might be a bug
+    csxHandler->startDocument();
+
     try {
-      //cout << "<StartDocument>" << endl;
-      csxHandler->startDocument();
-      for(int i=0; i<aArgs.size(); i++){
-        Iterator_t iter = aArgs[i]->getIterator();
-        traverse(iter, csxHandler, false);
-      }
-      //cout << "<EndDocument>" << endl;
-      csxHandler->endDocument();
+      // First arg is the item* to serialize
+      traverse(aArgs[0]->getIterator(), csxHandler, false);
     } catch(ZorbaException ze){
       cerr << ze << endl;
     }
 
-    //cout << ">>>>Returning (no Base64): " << theOutputStream << endl;
+    csxHandler->endDocument();
+
     string base64Result = zorba::encoding::Base64::encode(theOutputStream.str()).str();
     return ItemSequence_t(
       new SingletonItemSequence(Zorba::getInstance(0)->getItemFactory()->createBase64Binary(base64Result.c_str(),base64Result.length()))
@@ -269,30 +278,30 @@ namespace zorba { namespace csx {
       const zorba::StaticContext* aSctx,
       const zorba::DynamicContext* aDctx) const 
   {
-    auto_ptr<CSXParserHandler> parserHandler(new CSXParserHandler());
+    // Second arg is URIs to vocab files (optional)
+    theModule->loadVocab(theProcessor, aArgs[1]->getIterator());
+
+    vector<Item> v;
+    auto_ptr<CSXParserHandler> parserHandler(new CSXParserHandler(v));
 
     try {
-      for(int i=0; i<aArgs.size(); i++){
-        Iterator_t iter = aArgs[i]->getIterator();
-        iter->open();
-        Item input;
-        if(iter->next(input)){
-          string iString = zorba::encoding::Base64::decode(input.getStringValue()).str();
-          stringstream ss(iString);
-          parserHandler->startDocument();
-          // QQQ get this from fetch() somehow
-          ifstream vocab("foo.voc");
-          theProcessor->loadVocabulary(vocab);
-          theProcessor->parse(ss, parserHandler.get());
-          input.close();
-        }
-        iter->close();
+      // First arg is the base64 item to parse
+      Iterator_t iter = aArgs[0]->getIterator();
+      iter->open();
+      Item input;
+      if(iter->next(input)){
+        string iString = zorba::encoding::Base64::decode(input.getStringValue()).str();
+        stringstream ss(iString);
+        parserHandler->startDocument();
+        theProcessor->parse(ss, parserHandler.get());
+        input.close();
       }
-    } catch(ZorbaException ze){
+      iter->close();
+    }
+    catch(ZorbaException ze){
       cerr << ze << endl;
     }
 
-    vector<Item> v = parserHandler->getVectorItem();
     VectorItemSequence *vSeq = (v.size() > 0)?new VectorItemSequence(v):NULL;
     parserHandler->endDocument();
     return ItemSequence_t(vSeq);
@@ -300,19 +309,16 @@ namespace zorba { namespace csx {
 
   /*** Start the CSXParserHandler implementation ***/
 
-  CSXParserHandler::CSXParserHandler(void){
+  CSXParserHandler::CSXParserHandler(vector<Item>& aItems)
+    : m_result(aItems) {
     m_defaultType = Zorba::getInstance(0)->getItemFactory()->createQName(zorba::String("http://www.w3.org/2001/XMLSchema"),zorba::String("untyped"));
     m_defaultAttrType = Zorba::getInstance(0)->getItemFactory()->createQName(zorba::String("http://www.w3.org/2001/XMLSchema"),zorba::String("AnyAtomicType"));
   }
 
   void CSXParserHandler::startDocument(){
-    //m_emptyItem = Zorba::getInstance(0)
   }
 
   void CSXParserHandler::endDocument(){
-    for(int i=0; i<m_itemStack.size(); i++){
-      m_itemStack[i].close();
-    }
     m_itemStack.clear();
   }
 
@@ -342,7 +348,7 @@ namespace zorba { namespace csx {
                              (zorba::String(ite->first), zorba::String(ite->second)));
     }
 
-    Item parent = m_itemStack.empty() ? m_parent : m_itemStack.back();
+    Item parent = m_itemStack.empty() ? Item() : m_itemStack.back();
     Item thisNode;
     thisNode = z->getItemFactory()->createElementNode(parent, nodeName,
                                                       m_defaultType, false, false,
@@ -350,9 +356,14 @@ namespace zorba { namespace csx {
     m_itemStack.push_back(thisNode);
   }
 
-  void CSXParserHandler::endElement(const string &uri, const string &localname, const string &qname){
-    if(!m_itemStack.back().getParent().isNull())
-      m_itemStack.pop_back();
+  void CSXParserHandler::endElement(const string &uri, const string &localname, const string &prefix){
+    // Pop current element off stack; if it's unparented, add it to the output vector
+    // QQQ We don't currently handle anything other than elements as results
+    Item lItem = m_itemStack.back();
+    m_itemStack.pop_back();
+    if (lItem.getParent().isNull()) {
+      m_result.push_back(lItem);
+    }
   }
 
   void CSXParserHandler::characters(const string &chars){
@@ -390,10 +401,6 @@ namespace zorba { namespace csx {
   void CSXParserHandler::comment(const string &chars){
     cout << "inside comment(" << chars << ")" << endl;
     // No need to implement
-  }
-
-  vector<Item> CSXParserHandler::getVectorItem(){
-    return m_itemStack;
   }
 
   CSXParserHandler::~CSXParserHandler(){
