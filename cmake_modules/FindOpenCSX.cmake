@@ -1,2 +1,2 @@
-SET (OPENCSX_LIBRARY "C:\zorba\OpenCSX\OpenCSX-Luis\build\src\Debug\opencsx_lib.lib")
-SET (OPENCSX_INCLUDE_DIR "C:\zorba\OpenCSX\OpenCSX-Luis\include")
+SET (OPENCSX_LIBRARY "/home/ceej/zo/csx/build/src/libopencsx_lib.so")
+SET (OPENCSX_INCLUDE_DIR "/home/ceej/zo/csx/include")

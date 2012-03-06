@@ -102,42 +102,42 @@ namespace zorba { namespace csx {
     store::SchemaTypeCode iType = item.getTypeCode();
     //cout << "Item Type: ";
     switch(iType){
-    case store::XS_BOOLEAN:
-      cout << "boolean";
-      v->m_type = opencsx::DT_BOOLEAN;
-      v->m_value.f_bool = item.getBooleanValue();
-      break;
-    case store::XS_BYTE:
-      cout << "byte";
-      v->m_type = opencsx::DT_BYTE;
-      v->m_value.f_char = (unsigned char)item.getUnsignedIntValue();
-      break;
-    case store::XS_INT:
-      //cout << "integer";
-      v->m_type = opencsx::DT_INT;
-      v->m_value.f_int = item.getIntValue();
-      break;
-    case store::XS_LONG:
-      cout << "long";
-      v->m_type = opencsx::DT_LONG;
-      v->m_value.f_long = item.getLongValue();
-      break;
-    case store::XS_FLOAT:
-      cout << "float";
-      v->m_type = opencsx::DT_FLOAT;
-      v->m_value.f_float = (float)item.getDoubleValue();
-      break;
-    case store::XS_DOUBLE:
-      cout << "double";
-      v->m_type = opencsx::DT_DOUBLE;
-      v->m_value.f_double = item.getDoubleValue();
-      break;
-    case store::XS_STRING:
-    case store::XS_ANY_ATOMIC:
-    default:
-      v->m_type = opencsx::DT_STRING;
-      v->m_string = item.getStringValue().str();
-      break;
+      case store::XS_BOOLEAN:
+        cout << "boolean";
+        v->m_type = opencsx::DT_BOOLEAN;
+        v->m_value.f_bool = item.getBooleanValue();
+        break;
+      case store::XS_BYTE:
+        cout << "byte";
+        v->m_type = opencsx::DT_BYTE;
+        v->m_value.f_char = (unsigned char)item.getUnsignedIntValue();
+        break;
+      case store::XS_INT:
+        //cout << "integer";
+        v->m_type = opencsx::DT_INT;
+        v->m_value.f_int = item.getIntValue();
+        break;
+      case store::XS_LONG:
+        cout << "long";
+        v->m_type = opencsx::DT_LONG;
+        v->m_value.f_long = item.getLongValue();
+        break;
+      case store::XS_FLOAT:
+        cout << "float";
+        v->m_type = opencsx::DT_FLOAT;
+        v->m_value.f_float = (float)item.getDoubleValue();
+        break;
+      case store::XS_DOUBLE:
+        cout << "double";
+        v->m_type = opencsx::DT_DOUBLE;
+        v->m_value.f_double = item.getDoubleValue();
+        break;
+      case store::XS_STRING:
+      case store::XS_ANY_ATOMIC:
+      default:
+        v->m_type = opencsx::DT_STRING;
+        v->m_string = item.getStringValue().str();
+        break;
     }
   }
 
@@ -311,23 +311,20 @@ namespace zorba { namespace csx {
 
   CSXParserHandler::CSXParserHandler(vector<Item>& aItems)
     : m_result(aItems) {
-    m_defaultType = Zorba::getInstance(0)->getItemFactory()->createQName(zorba::String("http://www.w3.org/2001/XMLSchema"),zorba::String("untyped"));
-    m_defaultAttrType = Zorba::getInstance(0)->getItemFactory()->createQName(zorba::String("http://www.w3.org/2001/XMLSchema"),zorba::String("AnyAtomicType"));
+    m_itemFactory = Zorba::getInstance(NULL)->getItemFactory();
+    m_defaultType = m_itemFactory->createQName(
+          zorba::String("http://www.w3.org/2001/XMLSchema"),
+          zorba::String("untyped"));
+    m_defaultAttrType = m_itemFactory->createQName(
+          zorba::String("http://www.w3.org/2001/XMLSchema"),
+          zorba::String("AnyAtomicType"));
   }
 
   void CSXParserHandler::startDocument(){
   }
 
   void CSXParserHandler::endDocument(){
-    m_itemStack.clear();
-  }
-
-  void printVector(vector<pair<zorba::String, zorba::String> > v){
-    cout << "[";
-    for(vector<pair<zorba::String, zorba::String> >::iterator it = v.begin(); it != v.end(); it++){
-      cout << "[" << it->first << ", " << it->second << "]" << endl;
-    }
-    cout << "]" << endl;
+    m_elemStack.clear();
   }
 
   void CSXParserHandler::startElement(const string& uri, const string& localname,
@@ -336,9 +333,8 @@ namespace zorba { namespace csx {
     zorba::String zUri = zorba::String(uri);
     zorba::String zLocalName = zorba::String(localname);
     zorba::String zPrefix = zorba::String(prefix);
-    Zorba* z = Zorba::getInstance(0);
     //cout << "nodename composites: zUri: " << zUri << " zPrefix: " << zPrefix << " zLocalName: " << zLocalName << endl;
-    Item nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zLocalName);
+    Item nodeName = m_itemFactory->createQName(zUri, zPrefix, zLocalName);
 
     opencsx::CSXHandler::NsBindings::const_iterator ite = bindings->begin();
     opencsx::CSXHandler::NsBindings::const_iterator end = bindings->end();
@@ -348,19 +344,26 @@ namespace zorba { namespace csx {
                              (zorba::String(ite->first), zorba::String(ite->second)));
     }
 
-    Item parent = m_itemStack.empty() ? Item() : m_itemStack.back();
+    Item parent = m_elemStack.empty() ? Item() : m_elemStack.back();
     Item thisNode;
-    thisNode = z->getItemFactory()->createElementNode(parent, nodeName,
-                                                      m_defaultType, false, false,
+    thisNode = m_itemFactory->createElementNode(parent, nodeName,
+                                                      m_defaultType, true, false,
                                                       itembindings);
-    m_itemStack.push_back(thisNode);
+    m_elemStack.push_back(thisNode);
   }
 
   void CSXParserHandler::endElement(const string &uri, const string &localname, const string &prefix){
+    // If there are cached atomics, assign them as the typed-value of the
+    // current element.
+    Item lItem = m_elemStack.back();
+    if (m_atomics.size() > 0) {
+      m_itemFactory->assignElementTypedValue(lItem, m_atomics);
+      m_atomics.clear();
+    }
+
     // Pop current element off stack; if it's unparented, add it to the output vector
     // QQQ We don't currently handle anything other than elements as results
-    Item lItem = m_itemStack.back();
-    m_itemStack.pop_back();
+    m_elemStack.pop_back();
     if (lItem.getParent().isNull()) {
       m_result.push_back(lItem);
     }
@@ -368,12 +371,12 @@ namespace zorba { namespace csx {
 
   void CSXParserHandler::characters(const string &chars){
     // create text node
-    Zorba::getInstance(0)->getItemFactory()->createTextNode(m_itemStack.back(), chars);
+    m_itemFactory->createTextNode(m_elemStack.back(), chars);
   }
 
   void CSXParserHandler::atomicValue(const opencsx::AtomicValue &value) {
-    // QQQ unimplemented
-    assert(false);
+    // Cache these in case the element has a list of them.
+    m_atomics.push_back(getAtomicItem(value));
   }
 
   void CSXParserHandler::attribute(const string &uri, const string &localname,
@@ -381,10 +384,10 @@ namespace zorba { namespace csx {
     zorba::String zAttrName = zorba::String(localname);
     zorba::String zUri = zorba::String(uri);
     zorba::String zPrefix = zorba::String(prefix);
-    Zorba* z = Zorba::getInstance(0);
-    Item nodeName = z->getItemFactory()->createQName(zUri, zPrefix, zAttrName);
-    Item attrNodeValue = z->getItemFactory()->createString(zorba::String(value));
-    z->getItemFactory()->createAttributeNode(m_itemStack.back(), nodeName, m_defaultAttrType, attrNodeValue);
+    Item nodeName = m_itemFactory->createQName(zUri, zPrefix, zAttrName);
+    Item attrNodeValue = m_itemFactory->createString(zorba::String(value));
+    m_itemFactory->createAttributeNode(
+          m_elemStack.back(), nodeName, m_defaultAttrType, attrNodeValue);
   }
 
   void CSXParserHandler::attribute(const string &uri, const string &localname,
@@ -395,18 +398,49 @@ namespace zorba { namespace csx {
 
   void CSXParserHandler::processingInstruction(const string &target, const string &data){
     cout << "inside processinginstruction(" << target << ", " << data << ")" << endl;
-    // No need to implement
+    // No need to implement yet
   }
 
   void CSXParserHandler::comment(const string &chars){
     cout << "inside comment(" << chars << ")" << endl;
-    // No need to implement
+    // No need to implement yet
   }
 
   CSXParserHandler::~CSXParserHandler(){
-    m_itemStack.clear();
+    m_elemStack.clear();
   }
- 
+
+  Item
+  CSXParserHandler::getAtomicItem(opencsx::AtomicValue const& v){
+    //cout << "Item Type: ";
+    switch(v.m_type){
+      case opencsx::DT_BOOLEAN:
+        cout << "boolean";
+        return m_itemFactory->createBoolean(v.m_value.f_bool);
+      case opencsx::DT_BYTE:
+        cout << "byte";
+        return m_itemFactory->createByte(v.m_value.f_char);
+      case opencsx::DT_INT:
+        //cout << "integer";
+        return m_itemFactory->createInt(v.m_value.f_int);
+        break;
+      case opencsx::DT_LONG:
+        cout << "long";
+        return m_itemFactory->createLong(v.m_value.f_long);
+      case opencsx::DT_FLOAT:
+        cout << "float";
+        return m_itemFactory->createFloat(v.m_value.f_float);
+      case opencsx::DT_DOUBLE:
+        cout << "double";
+        return m_itemFactory->createDouble(v.m_value.f_double);
+      case opencsx::DT_STRING:
+        return m_itemFactory->createString(v.m_string);
+      default:
+        assert(false);
+    }
+  }
+
+
 }/*namespace csx*/ }/*namespace zorba*/
 
 #ifdef WIN32

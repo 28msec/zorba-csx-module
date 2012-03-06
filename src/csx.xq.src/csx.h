@@ -110,11 +110,22 @@ namespace zorba { namespace csx {
       CSXParserHandler(vector<Item>& aItems);
       virtual ~CSXParserHandler();
     private:
-      vector<Item> m_itemStack;
+      Item getAtomicItem(opencsx::AtomicValue const& v);
+
+      ItemFactory* m_itemFactory;
+
+      // Stack of constructed elements
+      vector<Item> m_elemStack;
+
+      // Output of parsing CSX
       vector<Item>& m_result;
+
+      // Collects AtomicValues for passing to assignElementTypedValue()
+      vector<Item> m_atomics;
+
+      // Defaults for untyped values
       Item m_defaultType;
       Item m_defaultAttrType;
-      Item m_parent;
   };
 
 }/*csx namespace*/}/*zorba namespace*/
