@@ -186,9 +186,16 @@ namespace zorba { namespace csx {
               attr.getNodeName(aName);
               //cout << "attr name: " << aName.getNamespace() << "::" << aName.getPrefix() << "::" << aName.getLocalName() << endl;
               //cout << "attr text: " << attr.getStringValue() << endl;
-              getTypedData(attr,&v);
+              Iterator_t values = attr.getAtomizationValue();
+              values->open();
+              Item value;
+              // QQQ Since there's no way to pass multiple AtomicValues for an
+              // attribute to OpenCSX, we just get the first.
+              values->next(value);
+              getTypedData(value,&v);
               handler->attribute(aName.getNamespace().str(), aName.getLocalName().str(),
                                  aName.getPrefix().str(), v);
+              values->close();
             }
           }
 
