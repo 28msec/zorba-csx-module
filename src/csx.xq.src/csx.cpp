@@ -217,7 +217,10 @@ namespace zorba { namespace csx {
         else if (kind == zorba::store::StoreConsts::textNode) {
           //cout << "<Characters>" << endl;
           if (!skip_text) {
-            handler->characters(item.getStringValue().str());
+            opencsx::AtomicValue v;
+            v.m_type = opencsx::DT_ANYATOMIC;
+            v.m_string = item.getStringValue().str();
+            handler->atomicValue(v);
           }
           children = NULL;
           //cout << "text content: " << item.getStringValue() << endl;
@@ -369,14 +372,15 @@ namespace zorba { namespace csx {
     }
   }
 
-  void CSXParserHandler::characters(const string &chars){
-    // create text node
-    m_itemFactory->createTextNode(m_elemStack.back(), chars);
-  }
-
   void CSXParserHandler::atomicValue(const opencsx::AtomicValue &value) {
-    // Cache these in case the element has a list of them.
-    m_atomics.push_back(getAtomicItem(value));
+    // AnyAtomic strings are text nodes in Zorba.
+    if (value.m_type == opencsx::DT_ANYATOMIC) {
+      m_itemFactory->createTextNode(m_elemStack.back(), value.m_string);
+    }
+    else {
+      // Cache atomics in case the element has a list of them.
+      m_atomics.push_back(getAtomicItem(value));
+    }
   }
 
   void CSXParserHandler::attribute(const string &uri, const string &localname,
