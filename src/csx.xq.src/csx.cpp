@@ -384,20 +384,15 @@ namespace zorba { namespace csx {
   }
 
   void CSXParserHandler::attribute(const string &uri, const string &localname,
-                                   const string &prefix, const string &value){
+                                   const string &prefix, const opencsx::AtomicValue &value) {
     zorba::String zAttrName = zorba::String(localname);
     zorba::String zUri = zorba::String(uri);
     zorba::String zPrefix = zorba::String(prefix);
     Item nodeName = m_itemFactory->createQName(zUri, zPrefix, zAttrName);
-    Item attrNodeValue = m_itemFactory->createString(zorba::String(value));
+    // QQQ handle other simple types!
+    Item attrNodeValue = m_itemFactory->createString(zorba::String(value.m_string));
     m_itemFactory->createAttributeNode(
           m_elemStack.back(), nodeName, m_defaultAttrType, attrNodeValue);
-  }
-
-  void CSXParserHandler::attribute(const string &uri, const string &localname,
-                                   const string &qname, const opencsx::AtomicValue &value) {
-    // QQQ unimplemented
-    assert(false);
   }
 
   void CSXParserHandler::processingInstruction(const string &target, const string &data){

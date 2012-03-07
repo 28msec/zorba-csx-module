@@ -100,7 +100,6 @@ namespace zorba { namespace csx {
       void startElement(const string& uri, const string& localname,
                         const string& prefix, const opencsx::CSXHandler::NsBindings* bindings);
       void endElement(const string &uri, const string &localname, const string &prefix);
-      void attribute(const string &uri, const string &localname, const string &qprefix, const string &value);
       void attribute(const string &uri, const string &localname, const string &prefix,
                      opencsx::AtomicValue const& value);
       void atomicValue(const opencsx::AtomicValue &value);
