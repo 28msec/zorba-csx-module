@@ -1,0 +1,1 @@
+<foo:Employee xmlns:foo="http://www.opencsx.org/schema"><foo:Name>Luis</foo:Name><foo:Salary>10000000</foo:Salary></foo:Employee>

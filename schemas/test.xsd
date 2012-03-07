@@ -1,0 +1,21 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:csx="http://xmlns.oracle.com/2004/CSX"
+            targetNamespace="http://www.opencsx.org/schema"
+            elementFormDefault="qualified">
+<xsd:element name="Employee" csx:propertyID="1234">
+  <xsd:complexType>
+    <xsd:annotation>
+      <xsd:appinfo>
+        <csx:kidList sequential="true">
+          <csx:kid propertyID="3456" kidNum="1"/>
+          <csx:kid propertyID="3457" kidNum="2"/>
+        </csx:kidList>
+      </xsd:appinfo>
+    </xsd:annotation>
+    <xsd:sequence>
+      <xsd:element name="Name" type="xsd:string" csx:propertyID="3456"/>
+      <xsd:element name="Salary" type="xsd:int" csx:propertyID="3457"/>
+    </xsd:sequence>
+  </xsd:complexType>
+</xsd:element>
+</xsd:schema>
