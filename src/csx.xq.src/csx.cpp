@@ -16,6 +16,9 @@
 
 #include "csx.h"
 
+// QQQ
+#include <valgrind/callgrind.h>
+
 namespace zorba { namespace csx {
 
   using namespace std;
@@ -199,16 +202,23 @@ namespace zorba { namespace csx {
             }
           }
 
-          // QQQ Hack necessary at the moment - only way to get typed value is
-          // via getAtomizationValue() (poorly named), but it also throws an
-          // exception if there is element-only content.
           bool has_atomic_values = false;
-          try {
-            children = item.getAtomizationValue();
-            has_atomic_values = traverse(children, handler, false);
-          }
-          catch (ZorbaException &e) {
-            //cout << e << endl;
+          // QQQ There should be a better way to do this, but: We need to use the
+          // actual text nodes for unvalidated content (only way to treat mixed
+          // content correctly), but we need to get the typed-value for validated
+          // content.
+          Item type = item.getType();
+          if (type.getLocalName().compare("untyped") != 0) {
+            try {
+              // QQQ Hack necessary at the moment - only way to get typed value is
+              // via getAtomizationValue() (poorly named), but it also throws an
+              // exception if there is element-only content.
+              children = item.getAtomizationValue();
+              has_atomic_values = traverse(children, handler, false);
+            }
+            catch (ZorbaException &e) {
+              //cout << e << endl;
+            }
           }
           children = item.getChildren();
           if(!children.isNull()){
@@ -233,6 +243,7 @@ namespace zorba { namespace csx {
           //cout << "text content: " << item.getStringValue() << endl;
         }
         else {
+          cout << "Foo: " << getKindAsString(kind);
           assert(false);
         }
       }
@@ -255,10 +266,15 @@ namespace zorba { namespace csx {
       const zorba::StaticContext* aSctx,
       const zorba::DynamicContext* aDctx) const 
   {
+    //CALLGRIND_START_INSTRUMENTATION;
+
     // Second argument is URIs to vocab files (optional)
     theModule->loadVocab(theProcessor, aArgs[1]->getIterator());
 
-    stringstream theOutputStream;
+    // QQQ hack for performance testing - should have an alternate form of
+    // csx:serialize() that takes an output file
+    ofstream theOutputStream("/tmp/out.csx");
+    //stringstream theOutputStream;
     opencsx::CSXHandler* csxHandler = theProcessor->createSerializer(theOutputStream);
 
     // OpenCSX requires a document to create a CSX section header; might be a bug
@@ -273,10 +289,16 @@ namespace zorba { namespace csx {
 
     csxHandler->endDocument();
 
-    string base64Result = zorba::encoding::Base64::encode(theOutputStream.str()).str();
-    return ItemSequence_t(
-      new SingletonItemSequence(Zorba::getInstance(0)->getItemFactory()->createBase64Binary(base64Result.c_str(),base64Result.length()))
-    );
+    // QQQ continued hack for performance testing; should introduce an alternate
+    // csx:serializeToFile() or something
+    theOutputStream.close();
+    //CALLGRIND_STOP_INSTRUMENTATION;
+//    string base64Result = zorba::encoding::Base64::encode(theOutputStream.str()).str();
+//    return ItemSequence_t(
+//          new SingletonItemSequence(
+//            Zorba::getInstance(0)->getItemFactory()->
+//            createBase64Binary(base64Result.c_str(),base64Result.length()))
+//          );
   }
 
 
@@ -288,6 +310,8 @@ namespace zorba { namespace csx {
       const zorba::StaticContext* aSctx,
       const zorba::DynamicContext* aDctx) const 
   {
+    //CALLGRIND_START_INSTRUMENTATION;
+
     // Second arg is URIs to vocab files (optional)
     theModule->loadVocab(theProcessor, aArgs[1]->getIterator());
 
@@ -300,10 +324,13 @@ namespace zorba { namespace csx {
       iter->open();
       Item input;
       if(iter->next(input)){
-        string iString = zorba::encoding::Base64::decode(input.getStringValue()).str();
-        stringstream ss(iString);
+        //string iString = zorba::encoding::Base64::decode(input.getStringValue()).str();
+        //stringstream ss(iString);
+        void *lStore = zorba::StoreManager::getStore();
+        Zorba* lZorba = Zorba::getInstance(lStore);
+        Item input_file = lZorba->getXmlDataManager()->fetch(input.getStringValue());
         parserHandler->startDocument();
-        theProcessor->parse(ss, parserHandler.get());
+        theProcessor->parse(input_file.getStream(), parserHandler.get());
         input.close();
       }
       iter->close();
@@ -314,6 +341,7 @@ namespace zorba { namespace csx {
 
     VectorItemSequence *vSeq = (v.size() > 0)?new VectorItemSequence(v):NULL;
     parserHandler->endDocument();
+    //CALLGRIND_STOP_INSTRUMENTATION;
     return ItemSequence_t(vSeq);
   }
 
@@ -385,7 +413,8 @@ namespace zorba { namespace csx {
       m_itemFactory->createTextNode(m_elemStack.back(), value.m_string);
     }
     else {
-      // Cache atomics in case the element has a list of them.
+      // Cache atomics in case the element has a list of them, because we can
+      // only call assignElementTypedValue() once.
       m_atomics.push_back(getAtomicItem(value));
     }
   }

@@ -8,7 +8,7 @@ declare option ver:module-version "1.0";
 (:~
  : Translate from a CSX binary encoded stream to XML.
  :)
-declare function csx:parse($csx as xs:base64Binary) as item()*
+declare function csx:parse($csx as xs:string) as item()*
 {
   csx:parse($csx, ())
 };
@@ -17,13 +17,13 @@ declare function csx:parse($csx as xs:base64Binary) as item()*
  : Translate from a CSX binary encoded stream to XML, providing a URI to
  : an OpenCSX vocabulary file
  :)
-declare function csx:parse($csx as xs:base64Binary, $vocab as xs:string*) as
+declare function csx:parse($csxfile as xs:string, $vocab as xs:string*) as
   item()* external;
 
 (:~
  : Translate from XML to a CSX binary stream.
  :)
-declare function csx:serialize($xdm as item()*) as xs:base64Binary
+declare function csx:serialize($xdm as item()*) as empty-sequence()
 {
   csx:serialize($xdm, ())
 };
@@ -33,4 +33,4 @@ declare function csx:serialize($xdm as item()*) as xs:base64Binary
  : OpenCSX vocabulary file
  :)
 declare function csx:serialize($xdm as item()*, $vocab as xs:string*) as
-  xs:base64Binary external;
+  empty-sequence() external;

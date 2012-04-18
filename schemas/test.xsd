@@ -1,5 +1,6 @@
 <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
             xmlns:csx="http://xmlns.oracle.com/2004/CSX"
+            xmlns:foo="http://www.opencsx.org/schema"
             targetNamespace="http://www.opencsx.org/schema"
             elementFormDefault="qualified">
 <xsd:element name="Employee" csx:propertyID="1234">
@@ -15,6 +16,14 @@
     <xsd:sequence>
       <xsd:element name="Name" type="xsd:string" csx:propertyID="3456"/>
       <xsd:element name="Salary" type="xsd:int" csx:propertyID="3457"/>
+    </xsd:sequence>
+  </xsd:complexType>
+</xsd:element>
+
+<xsd:element name="Emps">
+  <xsd:complexType>
+    <xsd:sequence>
+      <xsd:element ref="foo:Employee" maxOccurs="unbounded"/>
     </xsd:sequence>
   </xsd:complexType>
 </xsd:element>
